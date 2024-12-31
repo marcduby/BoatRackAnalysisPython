@@ -1,0 +1,5 @@
+
+
+- load data
+- read tables
+- get rack data and join to rowing data
