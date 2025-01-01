@@ -1,0 +1,17 @@
+
+for table in $(mdb-tables -1 /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2024ReviewDB.MDB); do
+# w/o headers   mdb-export -D '%Y-%m-%d %H:%M:%S' -H -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2024ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv/$table.csv"
+    mdb-export -D '%Y-%m-%d %H:%M:%S' -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2024ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv/$table.csv"
+done
+
+
+for table in $(mdb-tables -1 /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2023ReviewDB.MDB); do
+# w/o headers   mdb-export -D '%Y-%m-%d %H:%M:%S' -H -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2023ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv23/$table.csv"
+    mdb-export -D '%Y-%m-%d %H:%M:%S' -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2023ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv23/$table.csv"
+done
+
+
+for table in $(mdb-tables -1 /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2022ReviewDB.MDB); do
+# w/o headers   mdb-export -D '%Y-%m-%d %H:%M:%S' -H -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2022ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv22/$table.csv"
+    mdb-export -D '%Y-%m-%d %H:%M:%S' -d "," /home/javaprog/Data/Personal/CbcRack/CBC_DATA_2022ReviewDB.MDB "$table" > "/home/javaprog/Data/Personal/CbcRack/Csv22/$table.csv"
+done
