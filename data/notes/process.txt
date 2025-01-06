@@ -3,3 +3,28 @@
 - load data
 - read tables
 - get rack data and join to rowing data
+
+
+- for merged data 
+  - filter by year
+  - filter miles over 3
+  - take only racked personal boats
+
+
+- possible study
+  - times out by quarter
+    - study by low quarter rowers vs hugh quarter rowers
+  - percentage of total times out 
+  - how many other boats take out
+
+- studies to do 
+  - random forest with feature prediction impact
+  - factor with nvm
+
+
+
+questions
+  - split racks by inside/outside
+    - possibly also by bay
+  - what are junior/outside racks?
+  
