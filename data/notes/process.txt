@@ -22,8 +22,17 @@
   - factor with nvm
 
 
+possible features:
+------------------
+  - dob
+  - competition #
+  - hocr last 5 years
+  - miles category by row (low, high, medium)
 
-questions
+
+
+questions:
+----------
   - split racks by inside/outside
     - possibly also by bay
   - what are junior/outside racks?

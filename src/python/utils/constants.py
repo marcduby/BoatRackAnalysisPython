@@ -2,8 +2,8 @@
 
 # directory constants
 # NOTE: change this setting for portability
-DIR_DATA = "/home/javaprog/Data/Personal/CbcRack/"
 DIR_DATA = "/Users/mduby/Data/Personal/CbcRack/"
+DIR_DATA = "/home/javaprog/Data/Personal/CbcRack/"
 
 # rest
 DIR_DATA_PANDAS_22 = DIR_DATA + "Csv22/"

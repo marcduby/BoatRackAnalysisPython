@@ -2,9 +2,18 @@
 # imports
 import pandas as pd 
 import utils.constants as const
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+
+
 
 # constants
-
+# gets ris of setting by copy warnings
+pd.options.mode.chained_assignment = None 
 
 # methods
 def load_trip_data(log=True):
@@ -27,26 +36,27 @@ def get_season(data, log=False):
     '''
     month = data.month
     if month in [3, 4,5]:
-        return 'spring'
+        return 'Spring'
     elif month in [6, 7, 8]:
-        return 'summer'
+        return 'Summer'
     else:
-        return 'fall'
+        return 'Fall'
 
-def get_time_of_day(data, log=False):
+
+def get_time_of_day(hour, log=False):
     '''
     gets the time of day for a datetime var
     NOTE - make sure 20 hour clock
     '''
-    hour = data.hour
+    hour = hour
     if hour < 8:
-        return 'dawn'
+        return 'Dawn'
     elif hour < 11:
-        return 'morning'
-    elif hour < 5:
-        return 'afternoon'
+        return 'Morning'
+    elif hour < 17:
+        return 'Afternoon'
     else:
-        return 'evening'
+        return 'Evening'
 
 
 def print_shape(df_input, message, log=False):
@@ -70,13 +80,20 @@ def filter_data_for_modeling(df_input, is_member_rack=True, log=True):
 
     # create a date column
     # Convert the 'datetime_column' to datetime if it's not already
+    # avoid pd warning
     df_result['TimeOut'] = pd.to_datetime(df_result['TimeOut'])
+    # df_result.loc[:, 'TimeOut'] = pd.to_datetime(df_result['TimeOut'])
     # Extract just the date part and create a new column
-    df_result['date_trip'] = df_result['TimeOut'].dt.date    
+    df_result['TripDate'] = df_result['TimeOut'].dt.date    
 
     # add season column
-    df_result['season'] = df_result['date_trip'].map(get_season)
+    df_result['Season'] = df_result['TripDate'].map(get_season)
     print_shape(df_input=df_result, message='after season set')
+
+    # add time of day
+    df_result['TripHour'] = df_result['TimeOut'].dt.hour
+    df_result['PartOfDay'] = df_result['TripHour'].apply(get_time_of_day)    
+    print_shape(df_input=df_result, message='after time of day set')
 
     # recast owner id to int
     # first filter put 'Junior'
@@ -104,6 +121,57 @@ def filter_data_for_modeling(df_input, is_member_rack=True, log=True):
     return df_result
 
 
+def aggregate_season_data(df_input, year=2024, log=True):
+    '''
+    will aggregate the boat trip data by season
+    '''
+    # initialize
+
+    # filter by year
+    df_year = df_input[df_input['Year'] == year]
+
+    # pivot
+    # pivot_df = df_input.pivot_table(index='BoatId', columns='Season', aggfunc=len, fill_value=0)
+    # if log:
+    #     print("pivot df: \n{}".format(pivot_df.head()))
+
+    # Group by 'Boat' and 'TimeOfDay', count, and unstack
+    grouped_df = df_year.groupby(['BoatId', 'Season']).size().unstack(fill_value=0)
+    if log:
+        print("grouped df: \n{}".format(grouped_df.head()))
+
+    # NOTE - by year as well
+    # # Group by 'Boat', 'Year', and 'TimeOfDay', count, and unstack
+    # grouped_df = df.groupby(['Boat', 'Year', 'TimeOfDay']).size().unstack(fill_value=0)
+    # print(grouped_df)
+
+    # return
+    return grouped_df
+
+
+def aggregate_time_of_day_data(df_input, year=2024, log=True):
+    '''
+    will aggregate the boat trip data by time of day
+    '''
+    # initialize
+
+    # filter by year
+    df_year = df_input[df_input['Year'] == year]
+
+    # pivot
+    # pivot_df = df_input.pivot_table(index='BoatId', columns='Season', aggfunc=len, fill_value=0)
+    # if log:
+    #     print("pivot df: \n{}".format(pivot_df.head()))
+
+    # Group by 'Boat' and 'TimeOfDay', count, and unstack
+    grouped_df = df_year.groupby(['BoatId', 'PartOfDay']).size().unstack(fill_value=0)
+    if log:
+        print("grouped df: \n{}".format(grouped_df.head()))
+
+    # return
+    return grouped_df
+
+
 def aggregate_data(df_input, year=2024, log=False):
     '''
     aggregate data by year
@@ -115,6 +183,37 @@ def aggregate_data(df_input, year=2024, log=False):
     # avg trip length by season
 
 
+def fit_random_forest_and_analize(df_input, column_target, list_column_todrop, log=True):
+    '''
+    fit to a random forest and analyze the features
+    '''
+    # # Encoding categorical data
+    # label_encoder = LabelEncoder()
+    # df['Feature2'] = label_encoder.fit_transform(df['Feature2'])
+
+    # drop columns
+
+    # Splitting the data into features and target
+    X = df_input.drop(column_target, axis=1)
+    y = df_input[column_target]
+
+    # Splitting the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
+
+    # Initialize the model
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+
+    # Train the model
+    rf.fit(X_train, y_train)
+
+    # Getting feature importance
+    feature_importance = rf.feature_importances_
+    map_feature_importance = dict(zip(X.columns, feature_importance))
+    if log:
+        print("feature importance: {}".format(map_feature_importance))
+
+    # return
+    return map_feature_importance
 
 
 def analyse_data(df_input, log=True):
@@ -122,6 +221,28 @@ def analyse_data(df_input, log=True):
     will print analysis on the data
     '''
     print("null analysis: \n{}".format(df_input.isnull().sum()))
+
+
+def fit_random_forest_regressor(df_input, column_target, list_column_todrop, log=True):
+    '''
+    using random forest regressor
+    '''
+    # Assume df is your DataFrame and 'target' is your continuous target variable
+    X_train = df_input.drop(column_target, axis=1)
+    y_train = df_input[column_target]
+
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.0, random_state=42)
+
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    feature_importances = model.feature_importances_
+
+    # Print feature importances
+    df_importances = pd.DataFrame({'Feature': X_train.columns, 'Importance': feature_importances})
+    print("random forest regresor feature importance: \n{}".format(df_importances.sort_values(by='Importance', ascending=False)))
+
+    # return
+    return df_importances
 
 
 # main
@@ -144,7 +265,44 @@ if __name__ == "__main__":
     # print sample
     print(df_trips.head())
 
+    # aggregate
+    df_season = aggregate_season_data(df_input=df_trips)
+    df_time_of_day = aggregate_time_of_day_data(df_input=df_trips)
 
+    # sum by year
+    df_grouped_sum = df_trips[df_trips['Year'] == 2024].groupby('BoatId').size().reset_index(name='YearTrips')
+    print("grouped sum: \n{}".format(df_grouped_sum.head()))
 
+    # combine data by year/boat
+    df_merged = pd.merge(df_grouped_sum, df_season, on='BoatId', how='inner')
+    df_merged = pd.merge(df_merged, df_time_of_day, on='BoatId', how='inner')
+    print("merged: \n{}".format(df_merged.head()))
 
+    # calc percentages
+    for col in ['Fall', 'Spring', 'Summer', 'Dawn', 'Morning', 'Afternoon', 'Evening']:
+        df_merged[col + 'Perc'] = df_merged[col]/df_merged['YearTrips']
+    print("merged: \n{}".format(df_merged.head()))
+
+    # categorize total trips per year
+    # df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 25, 50, 75, 1000], labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
+    df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 40, 1000], labels=['Low', 'High'], include_lowest=True)
+    print("merged: \n{}".format(df_merged.head()))
+
+    # fit random forest
+    # get feature analysis
+    columns_to_model = ['YearTripCat', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+    feature_importance = fit_random_forest_and_analize(df_input=df_merged[columns_to_model], column_target='YearTripCat', list_column_todrop=[])
+
+    # regressor
+    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+    feature_importance = fit_random_forest_regressor(df_input=df_merged[columns_to_model], column_target='YearTrips', list_column_todrop=[])
+
+    # simple correlations
+    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+    df_correlations = df_merged[columns_to_model].corr()
+    print(df_correlations['YearTrips'].sort_values(ascending=False))    
+
+# TODO
+# - sum by year for all boats
+# - categorize sum by year?
 
