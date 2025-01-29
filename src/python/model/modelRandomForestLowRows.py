@@ -228,7 +228,7 @@ def analyse_data(df_input, log=True):
     print("null analysis: \n{}".format(df_input.isnull().sum()))
 
 
-def fit_random_forest_regressor(df_input, column_target, list_column_todrop, log=True):
+def fit_random_forest_regressor(df_input, column_target, list_column_todrop, yearInput=0, log=True):
     '''
     using random forest regressor
     '''
@@ -248,7 +248,7 @@ def fit_random_forest_regressor(df_input, column_target, list_column_todrop, log
 
     # Print feature importances
     df_importances = pd.DataFrame({'Feature': X_train.columns, 'ImportanceContinuous': feature_importances})
-    print("random forest regresor feature importance: \n{}".format(df_importances.sort_values(by='ImportanceContinuous', ascending=False)))
+    print("for year: {} - random forest regresor feature importance: \n{}\n".format(yearInput, df_importances.sort_values(by='ImportanceContinuous', ascending=False)))
 
     # return
     return df_importances
@@ -256,6 +256,9 @@ def fit_random_forest_regressor(df_input, column_target, list_column_todrop, log
 
 # main
 if __name__ == "__main__":
+    # initialize
+    debug = False
+
     # load the data
     df_trips = load_trip_data()
 
@@ -278,54 +281,106 @@ if __name__ == "__main__":
     df_season = aggregate_season_data(df_input=df_trips)
     df_time_of_day = aggregate_time_of_day_data(df_input=df_trips)
 
+    # TODO - loop here
+    yearToStudy = 2024
+
     # sum by year
-    df_grouped_sum = df_trips[df_trips['Year'] == 2024].groupby('BoatId').size().reset_index(name='YearTrips')
-    print("grouped sum: \n{}".format(df_grouped_sum.head()))
+    df_grouped_sum = df_trips[df_trips['Year'] == yearToStudy].groupby('BoatId').size().reset_index(name='YearTrips')
+    if debug:
+        print("grouped sum: \n{}\n".format(df_grouped_sum.head()))
 
     # combine data by year/boat
     df_merged = pd.merge(df_grouped_sum, df_season, on='BoatId', how='inner')
     df_merged = pd.merge(df_merged, df_time_of_day, on='BoatId', how='inner')
-    print("merged: \n{}".format(df_merged.head()))
+    if debug:
+        print("merged: \n{}\n".format(df_merged.head()))
 
     # calc percentages
     for col in ['Fall', 'Spring', 'Summer', 'Dawn', 'Morning', 'Afternoon', 'Evening']:
         df_merged[col + 'Perc'] = df_merged[col]/df_merged['YearTrips']
-    print("merged: \n{}".format(df_merged.head()))
+    if debug:
+        print("merged: \n{}\n".format(df_merged.head()))
 
-    # categorize total trips per year
-    # df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 25, 50, 75, 1000], labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
-    df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 40, 1000], labels=['Low', 'High'], include_lowest=True)
-    print("merged: \n{}".format(df_merged.head()))
-
-    # fit random forest
-    # get feature analysis
-    columns_to_model = ['YearTripCat', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
-    df_cat_feature_importance = fit_random_forest_and_analize(df_input=df_merged[columns_to_model], column_target='YearTripCat', list_column_todrop=[])
+    # filter out less than 33 rows
+    df_low_rows = df_merged[df_merged['YearTrips'] < 33]
+    print("year: {}, got low row dataset of shape: {} from original dataset of shape: {}\n".format(yearToStudy, df_low_rows.shape, df_merged.shape))
 
     # regressor
-    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
-    df_cont_feature_importance = fit_random_forest_regressor(df_input=df_merged[columns_to_model], column_target='YearTrips', list_column_todrop=[])
+    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc']
+    df_cont_feature_importance = fit_random_forest_regressor(df_input=df_low_rows[columns_to_model], column_target='YearTrips', list_column_todrop=[], yearInput=yearToStudy)
 
     # simple correlations
-    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+    columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc']
     df_input_correlation = df_merged[columns_to_model]
     # log input
-    print("\nfor correlation, got data: \n{}".format(df_input_correlation.head()))
+    if debug:
+        print("year: {} - for correlation, got data: \n{}".format(yearToStudy, df_input_correlation.head()))
     df_correlations = df_input_correlation.corr()['YearTrips'].drop('YearTrips', axis=0).to_frame()
     df_correlations.columns = ['CorrelationWithYearTrips']
     df_correlations.index.name = 'Feature'
-    # df_tran_corr = pd.DataFrame(df_correlations).T
-    print("\ncorrelations: \n{}".format(df_correlations))
-    # df_new_corr = pd.DataFrame([df_correlations.values], columns=df_correlations.index)
-    # df_new_corr.index = ['Correlation']
-    # print("\ncorrleations: \n{}".format(df_new_corr))
+    print("year: {} - correlations: \n{}\n".format(yearToStudy,df_correlations))
 
     # merge aggregate data
-    df_agg_merged = pd.merge(df_cat_feature_importance, df_cont_feature_importance, on='Feature', how='inner')
-    df_agg_merged = pd.merge(df_agg_merged, df_correlations, on='Feature', how='inner')
-    print("\nmerged aggregation: \n{}".format(df_agg_merged))
+    # df_agg_merged = pd.merge(df_cat_feature_importance, df_cont_feature_importance, on='Feature', how='inner')
+    df_agg_merged = pd.merge(df_cont_feature_importance, df_correlations, on='Feature', how='inner')
+    print("year: {} - merged aggregation: \n{}".format(yearToStudy, df_agg_merged))
 
-# TODO
-# - sum by year for all boats
-# - categorize sum by year?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#     # categorize total trips per year
+#     # df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 25, 50, 75, 1000], labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
+#     df_merged['YearTripCat'] = pd.cut(df_merged['YearTrips'], bins=[0, 40, 1000], labels=['Low', 'High'], include_lowest=True)
+#     print("merged: \n{}\n".format(df_merged.head()))
+
+#     # fit random forest
+#     # get feature analysis
+#     columns_to_model = ['YearTripCat', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+#     df_cat_feature_importance = fit_random_forest_and_analize(df_input=df_merged[columns_to_model], column_target='YearTripCat', list_column_todrop=[])
+
+#     # regressor
+#     columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+#     df_cont_feature_importance = fit_random_forest_regressor(df_input=df_merged[columns_to_model], column_target='YearTrips', list_column_todrop=[])
+
+#     # simple correlations
+#     columns_to_model = ['YearTrips', 'FallPerc', 'SpringPerc', 'SummerPerc', 'DawnPerc', 'MorningPerc', 'AfternoonPerc', 'EveningPerc']
+#     df_input_correlation = df_merged[columns_to_model]
+#     # log input
+#     print("\nfor correlation, got data: \n{}".format(df_input_correlation.head()))
+#     df_correlations = df_input_correlation.corr()['YearTrips'].drop('YearTrips', axis=0).to_frame()
+#     df_correlations.columns = ['CorrelationWithYearTrips']
+#     df_correlations.index.name = 'Feature'
+#     # df_tran_corr = pd.DataFrame(df_correlations).T
+#     print("\ncorrelations: \n{}".format(df_correlations))
+#     # df_new_corr = pd.DataFrame([df_correlations.values], columns=df_correlations.index)
+#     # df_new_corr.index = ['Correlation']
+#     # print("\ncorrleations: \n{}".format(df_new_corr))
+
+#     # merge aggregate data
+#     df_agg_merged = pd.merge(df_cat_feature_importance, df_cont_feature_importance, on='Feature', how='inner')
+#     df_agg_merged = pd.merge(df_agg_merged, df_correlations, on='Feature', how='inner')
+#     print("\nmerged aggregation: \n{}".format(df_agg_merged))
+
+# # TODO
+# # - sum by year for all boats
+# # - categorize sum by year?
 

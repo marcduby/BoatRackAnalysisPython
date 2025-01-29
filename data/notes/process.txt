@@ -28,6 +28,8 @@ possible features:
   - competition #
   - hocr last 5 years
   - miles category by row (low, high, medium)
+  - by # users of boat?
+  - user has usrowingid?
 
 
 
